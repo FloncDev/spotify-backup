@@ -1,0 +1,11 @@
+[package]
+name = "spotify_backup"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ejdb = "0.4.1"
+rspotify = {version="0.11.7", features=["cli", "env-file"]}
+tokio = {version="1.29.1", features=["full"]}

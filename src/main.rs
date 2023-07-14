@@ -1,15 +1,16 @@
 use rspotify::{
     scopes, AuthCodeSpotify, Credentials, OAuth, Config,
-    prelude::*, model::{SearchType, SearchResult::Playlists, PlaylistId},
+    prelude::*, model::{SearchType, SearchResult::Playlists, PlaylistId, PlayableItem},
 };
+use serde::{Deserialize, Serialize};
 
-async fn get_playlist_id(spotify: AuthCodeSpotify, name: &str) -> PlaylistId {
+async fn get_playlist_id(spotify: &AuthCodeSpotify, name: String) -> PlaylistId<'static> {
     let results = spotify.search(
-        format!("playlist: {}", name).as_str(),
+        &name,
         SearchType::Playlist,
         None,
         None,
-        Some(10),
+        Some(1),
         None
     ).await;
 
@@ -22,12 +23,30 @@ async fn get_playlist_id(spotify: AuthCodeSpotify, name: &str) -> PlaylistId {
     }
 }
 
-async fn searalize_playlist(spotify: AuthCodeSpotify, id: PlaylistId<'_>) {
-    let playlist = spotify.playlist(id, None, None).await.unwrap();
+#[derive(Serialize, Deserialize, Debug)]
+struct PlaylistStore {
+    id: String,
+    tracks: Vec<String>
+}
 
-    // Need to figure out how im going to be storing the playlists
-    // For now probably just going to make it into json
-    todo!()
+async fn searalize_playlist(spotify: &AuthCodeSpotify, id: PlaylistId<'_>) -> PlaylistStore {
+    let playlist = spotify.playlist(id.clone(), None, None).await.unwrap();
+
+    let mut tracks: Vec<String> = vec![];
+    
+    for track in playlist.tracks.items {
+        let playable_item: PlayableItem = match track.track {
+            None => {continue;}
+            Some(playable_item) => {playable_item}
+        };
+
+        tracks.push(playable_item.id().unwrap().uri())
+    }
+    
+    PlaylistStore{
+        id: id.uri(),
+        tracks
+    }
 }
 
 #[tokio::main]
@@ -49,9 +68,8 @@ async fn main() {
         .await
         .expect("Couldn't Auth Successfully!");
 
-    // let me = spotify.me().await.unwrap();
+    let playlist_id = get_playlist_id(&spotify, "Daily Drive".to_string()).await;
+    let serialized = searalize_playlist(&spotify, playlist_id).await;
 
-    let playlist_id = get_playlist_id(spotify, "Discover Weekly").await;
-
-    println!("{playlist_id:?}");
+    println!("{:?}", serialized);
 }
